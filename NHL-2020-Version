@@ -1,0 +1,343 @@
+import requests
+import json
+
+
+player = input("Enter a Current Player's Name: ")
+player = player.upper()
+endpoint = 'https://statsapi.web.nhl.com/api/v1/teams'
+team = 1
+count = 0
+playerid = 'Name Not Found'
+while True:
+    url = f'{endpoint}/{team}/roster'
+    
+    try:
+
+        response = requests.get(url)  
+        response.raise_for_status()   
+        data = response.json()        
+      
+    except json.decoder.JSONDecodeError as e: 
+        print("ERROR: Cannot decode the response into json")
+        print("DETAILS", e)
+
+    except requests.exceptions.HTTPError as e:
+        print("ERROR: Response from ", url, 'was not ok.')
+        print("DETAILS:", e)
+
+    except requests.exceptions.RequestException as e: 
+        print("ERROR: Cannot connect to ", url)
+        print("DETAILS:", e)
+    
+    response = requests.get(url)
+    data = response.json()
+    data = data['roster']
+    for i in data:
+        size = len(data)
+        if count >= size:
+            break
+        name = data[count]['person']['fullName']
+        name = name.upper()
+        if name == player:
+            playerid = data[count]['person']['id']
+            position = data[count]['position']['type']
+            break
+        else:
+            count+=1
+    team+=1
+    if team == 11:
+        team+=1
+    if team == 27:
+        team+=1
+    if team == 31:
+        team = team + 21
+    if team == 55:
+        break
+    count = 0
+
+
+endpoint = 'https://statsapi.web.nhl.com/api/v1/people/'
+url = f'{endpoint}{playerid}'
+try:
+
+    response = requests.get(url)  # throws an exception when it cannot connect
+    response.raise_for_status()   # throws an exception when not 'ok'
+    bio = response.json()        # throws an exception when cannot decode json
+    
+# cannot decode json
+except json.decoder.JSONDecodeError as e: 
+    print("ERROR: Cannot decode the response into json")
+    print("DETAILS", e)
+
+# response not ok
+except requests.exceptions.HTTPError as e:
+    print("ERROR: Response from ", url, 'was not ok.')
+    print("DETAILS:", e)
+        
+# internet is broken
+except requests.exceptions.RequestException as e: 
+    print("ERROR: Cannot connect to ", url)
+    print("DETAILS:", e)
+birthcity = bio['people'][0]['birthCity']
+birthcountry = bio['people'][0]['birthCountry']
+
+endpoint = 'https://restcountries.eu/rest/v2/alpha/'
+url = f'{endpoint}{birthcountry}'
+try:
+
+    response = requests.get(url)  # throws an exception when it cannot connect
+    response.raise_for_status()   # throws an exception when not 'ok'
+    countryinfo = response.json()        # throws an exception when cannot decode json
+    
+# cannot decode json
+except json.decoder.JSONDecodeError as e: 
+    print("ERROR: Cannot decode the response into json")
+    print("DETAILS", e)
+
+# response not ok
+except requests.exceptions.HTTPError as e:
+    print("ERROR: Response from ", url, 'was not ok.')
+    print("DETAILS:", e)
+        
+# internet is broken
+except requests.exceptions.RequestException as e: 
+    print("ERROR: Cannot connect to ", url)
+    print("DETAILS:", e)
+country = countryinfo['name']
+count = country.split()
+if len(count) > 1:
+    country = count[0][0] + count[1][0]
+
+endpoint = f'https://statsapi.web.nhl.com/api/v1/people/{playerid}/stats?'
+stattype = 'statsSingleSeason'
+seasons = '20182019'
+params = { 'stats' : stattype , 'season' : seasons}
+try:
+
+    response = requests.get(endpoint, params = params)  # throws an exception when it cannot connect
+    response.raise_for_status()   # throws an exception when not 'ok'
+    statistics = response.json()        # throws an exception when cannot decode json
+    
+# cannot decode json
+except json.decoder.JSONDecodeError as e: 
+    print("ERROR: Cannot decode the response into json")
+    print("DETAILS", e)
+
+# response not ok
+except requests.exceptions.HTTPError as e:
+    print("ERROR: Response from ", url, 'was not ok.')
+    print("DETAILS:", e)
+        
+# internet is broken
+except requests.exceptions.RequestException as e: 
+    print("ERROR: Cannot connect to ", url)
+    print("DETAILS:", e)
+statistics = statistics['stats'][0]['splits'][0]['stat']
+if position != 'Goalie':
+    games = statistics['games']
+    goals = statistics['goals']
+    assists = statistics['assists']
+    points = statistics['points']
+    gk = False
+else:
+    games = statistics['games']
+    wins = statistics['wins']
+    gaa = statistics['goalAgainstAverage']
+    shutouts = statistics['shutouts']
+    gk = True
+
+import pandas as pd
+
+key = "79b7b35dbc0c4a1d80203525202104"
+
+location = f'{birthcity},{country}'
+format_type = 'json'
+included = 'Yes'
+start = '2019-01-01'
+end = '2019-01-30'
+params = {'key' : key , 'q' : location , 'Format' : format_type , 'includelocation' : included ,
+          'date' : start, 'enddate' : end }
+try:
+
+    response = requests.get("https://api.worldweatheronline.com/premium/v1/weather.ashx", params = params)  # throws an exception when it cannot connect
+    response.raise_for_status()   # throws an exception when not 'ok'
+    data = response.json()        # throws an exception when cannot decode json
+    
+# cannot decode json
+except json.decoder.JSONDecodeError as e: 
+    print("ERROR: Cannot decode the response into json")
+    print("DETAILS", e)
+
+# response not ok
+except requests.exceptions.HTTPError as e:
+    print("ERROR: Response from ", url, 'was not ok.')
+    print("DETAILS:", e)
+        
+# internet is broken
+except requests.exceptions.RequestException as e: 
+    print("ERROR: Cannot connect to ", url)
+    print("DETAILS:", e)
+response = requests.get("https://api.worldweatheronline.com/premium/v1/weather.ashx", params = params)
+weather = response.json()
+mintemp = weather['data']['ClimateAverages'][0]['month'][0]['avgMinTemp_F']
+maxtemp = weather['data']['ClimateAverages'][0]['month'][0]['absMaxTemp_F']
+weather = weather['data']['ClimateAverages'][0]['month']
+maxtemps = []
+mintemps = []
+months = ['Jan', 'Feb', 'Mar', 'Apr', 'May' , 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
+count = 0
+for i in weather:
+    maxtemps.append(weather[count]['absMaxTemp_F'])
+    count+=1
+count = 0
+for i in weather:
+    mintemps.append(weather[count]['avgMinTemp_F'])
+    count+=1
+data = pd.DataFrame( { 'Month' : months, f'MaxTemps {birthcity}' : maxtemps})
+data
+
+location = 'Hong Kong'
+format_type = 'json'
+included = 'Yes'
+start = '2019-01-01'
+end = '2019-01-30'
+params = {'key' : key , 'q' : location , 'Format' : format_type , 'includelocation' : included , 'date' : start, 'enddate' : end }
+response = requests.get("https://api.worldweatheronline.com/premium/v1/weather.ashx", params = params)
+weather = response.json()
+mintemp = weather['data']['ClimateAverages'][0]['month'][0]['avgMinTemp_F']
+maxtemp = weather['data']['ClimateAverages'][0]['month'][0]['absMaxTemp_F']
+weather = weather['data']['ClimateAverages'][0]['month']
+maxtemps = []
+mintemps = []
+months = ['Jan', 'Feb', 'Mar', 'Apr', 'May' , 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
+count = 0
+for i in weather:
+    maxtemps.append(weather[count]['absMaxTemp_F'])
+    count+=1
+count = 0
+for i in weather:
+    mintemps.append(weather[count]['avgMinTemp_F'])
+    count+=1
+hongKong = pd.DataFrame( { 'Month' : months, 'MaxTemps Hong_Kong' : maxtemps})
+
+
+location = 'London'
+format_type = 'json'
+included = 'Yes'
+start = '2019-01-01'
+end = '2019-01-30'
+params = {'key' : key , 'q' : location , 'Format' : format_type , 'includelocation' : included , 'date' : start, 'enddate' : end }
+response = requests.get("https://api.worldweatheronline.com/premium/v1/weather.ashx", params = params)
+weather = response.json()
+mintemp = weather['data']['ClimateAverages'][0]['month'][0]['avgMinTemp_F']
+maxtemp = weather['data']['ClimateAverages'][0]['month'][0]['absMaxTemp_F']
+weather = weather['data']['ClimateAverages'][0]['month']
+maxtemps = []
+mintemps = []
+months = ['Jan', 'Feb', 'Mar', 'Apr', 'May' , 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
+count = 0
+for i in weather:
+    maxtemps.append(weather[count]['absMaxTemp_F'])
+    count+=1
+count = 0
+for i in weather:
+    mintemps.append(weather[count]['avgMinTemp_F'])
+    count+=1
+london = pd.DataFrame( { 'Month' : months, 'MaxTemps London' : maxtemps})
+
+
+location = 'New York'
+format_type = 'json'
+included = 'Yes'
+start = '2019-01-01'
+end = '2019-01-30'
+params = {'key' : key , 'q' : location , 'Format' : format_type , 'includelocation' : included , 'date' : start, 'enddate' : end }
+response = requests.get("https://api.worldweatheronline.com/premium/v1/weather.ashx", params = params)
+weather = response.json()
+mintemp = weather['data']['ClimateAverages'][0]['month'][0]['avgMinTemp_F']
+maxtemp = weather['data']['ClimateAverages'][0]['month'][0]['absMaxTemp_F']
+weather = weather['data']['ClimateAverages'][0]['month']
+maxtemps = []
+mintemps = []
+months = ['Jan', 'Feb', 'Mar', 'Apr', 'May' , 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
+count = 0
+for i in weather:
+    maxtemps.append(weather[count]['absMaxTemp_F'])
+    count+=1
+count = 0
+for i in weather:
+    mintemps.append(weather[count]['avgMinTemp_F'])
+    count+=1
+newYork = pd.DataFrame( { 'Month' : months, 'MaxTemps New_York' : maxtemps})
+
+fulldata = data.merge(newYork,  how ='inner', left_on='Month', right_on='Month')
+fulldata = fulldata.merge(london, how = 'inner', left_on='Month', right_on='Month')
+fulldata = fulldata.merge(hongKong, how = 'inner', left_on='Month', right_on='Month')
+residuals = []
+x = 0
+for i in fulldata[f'MaxTemps {birthcity}']:
+    value = (float(fulldata[f'MaxTemps {birthcity}'][x]) - float(fulldata['MaxTemps New_York'][x]))
+    + float(fulldata[f'MaxTemps {birthcity}'][x])
+    - float(fulldata['MaxTemps London'][x]) + float(fulldata[f'MaxTemps {birthcity}'][x])
+    - float(fulldata['MaxTemps Hong_Kong'][x])/3
+    value = round(value,1)
+    residuals.append(value)
+    x += 1
+avgResiduals = pd.DataFrame( { 'Month' : months, 'Average Residuals' : residuals})
+fulldata = fulldata.merge(avgResiduals, how='inner', left_on = 'Month', right_on = 'Month')
+
+import numpy as np
+import matplotlib.pyplot as plt
+
+
+fStats = (27, 8, 14, 22)
+dStats = (47,3,12,15)
+gStats = (27,12,30,1)
+
+if position == 'Forward':
+    avgStats = fStats
+elif position == 'Defenseman':
+    avgStats = dStats
+else:
+    avgStats = gStats
+
+width = .35
+if gk == False:
+    height = [games, goals , assists , points]
+    bars = ('games','goals', 'assists', 'points')
+    y_pos = np.arange(len(bars))
+    plt.bar(y_pos, height, width, label=player)
+    plt.bar(y_pos + width, avgStats, width, label=f'Average {position}')
+    plt.xticks(y_pos, bars)
+    plt.title(player + ' total points breakdown')
+    plt.ylabel('Count')
+    plt.legend(loc='best')
+    plt.show()
+
+    print(player)
+    print(f'Position: {position}')
+    print(f'Games Played: {games}')
+    print(f'Goals: {goals}')
+    print(f'Assists: {assists}')
+    print(f'Points: {points}')
+    
+else:
+    height = [games, wins , gaa*10 , shutouts]
+    bars = ('games','wins', 'GAA (x 10)', 'shutouts')
+    y_pos = np.arange(len(bars))
+    plt.bar(y_pos, height, width, label=player)
+    plt.bar(y_pos + width, avgStats, width, label='Average Goalie')
+    plt.xticks(y_pos, bars)
+    plt.title(player + ' saves breakdown')
+    plt.ylabel('Count')
+    plt.legend(loc='best')
+    plt.show()
+
+    print(player)
+    print(f'Position: {position}')
+    print(f'Games Played: {games}')
+    print(f'Wins: {wins}')
+    print(f'Goals Against Average: {gaa}')
+    print(f'Shutouts: {shutouts}')
+
+fulldata
